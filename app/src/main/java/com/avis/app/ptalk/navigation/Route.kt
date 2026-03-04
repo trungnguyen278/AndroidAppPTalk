@@ -1,6 +1,10 @@
 package com.avis.app.ptalk.navigation
 
 object Route {
+    // Config-only app routes
+    const val HOME: String = "home"
+    const val SCAN_DEVICE: String = "scan_device"
+    
     const val LOGIN: String = "login"
     const val SIGNUP: String = "signup"
     const val FORGOT_PASSWORD: String = "forgot_password"

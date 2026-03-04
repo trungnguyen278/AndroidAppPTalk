@@ -5,27 +5,32 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.rememberNavController
-import com.avis.app.ptalk.navigation.AppNavGraph
-import com.avis.app.ptalk.navigation.Route
-import com.avis.app.ptalk.ui.component.appbar.MainNavigationBar
-import com.avis.app.ptalk.ui.theme.AndroidPTalkTheme
+import com.avis.app.ptalk.navigation.ConfigAppNavGraph
+import com.avis.app.ptalk.ui.theme.AppColors
+import com.avis.app.ptalk.ui.theme.appColors
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.thingai.android.module.meo.MeoSdk
 import org.thingai.base.log.ILog
-import org.thingai.meo.common.callback.RequestCallback
 
+// Global composition local for theme colors
+val LocalAppColors = compositionLocalOf<AppColors> { error("No AppColors provided") }
+
+/**
+ * Simplified MainActivity for config-only app
+ * No authentication, no database, just BLE config
+ * Supports system dark/light theme
+ */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,74 +41,37 @@ class MainActivity : ComponentActivity() {
 
         MeoSdk.init(this.applicationContext)
 
-        // Install the platform splash screen and keep it until auth check completes
+        // Simple splash screen - no auth check needed
         val splashScreen = installSplashScreen()
-        var keepOnScreen = true
-        splashScreen.setKeepOnScreenCondition { keepOnScreen }
-
-        // Flow to hold authentication result; null = unknown/loading
-        val authStateFlow = MutableStateFlow<Boolean?>(null)
-
-        // Kick off connect; update authStateFlow and release splash when done
-        MeoSdk.connect(object : RequestCallback<Boolean> {
-            override fun onSuccess(p0: Boolean?, p1: String?) {
-                runOnUiThread {
-                    authStateFlow.value = p0 ?: false
-                    keepOnScreen = false
-                }
-            }
-
-            override fun onFailure(p0: Int, p1: String?) {
-                runOnUiThread {
-                    authStateFlow.value = false
-                    keepOnScreen = false
-                }
-            }
-        })
+        splashScreen.setKeepOnScreenCondition { false }
 
         enableEdgeToEdge()
         setContent {
             val navController = rememberNavController()
             val focusManager = LocalFocusManager.current
             val keyboardController = LocalSoftwareKeyboardController.current
+            
+            // Use system theme
+            val colors = appColors(isSystemInDarkTheme())
 
-            // collect auth state into Compose
-            val authState by authStateFlow.collectAsStateWithLifecycle()
-
-            // When authState becomes known, navigate accordingly once
-            LaunchedEffect(authState) {
-                if (authState == true) {
-                    ILog.d("MainActivity", "Authenticated")
-                    navController.navigate(Route.DEVICE) {
-                        launchSingleTop = true
-                        popUpTo(navController.graph.startDestinationId) { saveState = false }
-                    }
-                } else if (authState == false) {
-                    ILog.d("MainActivity", "Not authenticated")
-                    navController.navigate(Route.LOGIN) {
-                        launchSingleTop = true
-                        popUpTo(navController.graph.startDestinationId) { saveState = false }
-                    }
-                }
-            }
-
-            AndroidPTalkTheme(
-                content = {
-                    Scaffold(
-                        bottomBar = {
-                            MainNavigationBar(navController = navController)
-                        },
-                        modifier = Modifier.pointerInput(Unit) {
+            CompositionLocalProvider(LocalAppColors provides colors) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
                             detectTapGestures {
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
                             }
-                        }
-                    ) { innerPadding ->
-                        AppNavGraph(navController = navController, modifier = Modifier.padding(paddingValues = innerPadding))
-                    }
+                        },
+                    color = colors.background
+                ) {
+                    ConfigAppNavGraph(
+                        navController = navController,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
-            )
+            }
         }
     }
 }

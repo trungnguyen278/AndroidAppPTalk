@@ -46,9 +46,25 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Requires BLUETOOTH_SCAN and BLUETOOTH_CONNECT runtime permissions (Android 12+).
  */
+@SuppressLint("MissingPermission")
 class PTalkBleClient(private val app: Context) : BleClient {
     private val TAG: String = "PTalkBleClient"
     private val sessions = ConcurrentHashMap<String, PTalkBleSession>()
+    
+    // RSSI history for smoothing (keep last 5 readings per device)
+    private val rssiHistory = ConcurrentHashMap<String, MutableList<Int>>()
+    private val RSSI_HISTORY_SIZE = 5
+    
+    private fun smoothRssi(address: String, newRssi: Int): Int {
+        val history = rssiHistory.getOrPut(address) { mutableListOf() }
+        history.add(newRssi)
+        // Keep only last N readings
+        while (history.size > RSSI_HISTORY_SIZE) {
+            history.removeAt(0)
+        }
+        // Return average
+        return history.average().toInt()
+    }
 
     override fun scanForConfigDevices(): Flow<List<ScannedDevice>> {
         val manager = app.getSystemService(BluetoothManager::class.java)
@@ -70,10 +86,12 @@ class PTalkBleClient(private val app: Context) : BleClient {
             val cb = object : ScanCallback() {
                 override fun onScanResult(callbackType: Int, result: ScanResult) {
                     val d = result.device
+                    // Smooth RSSI to reduce fluctuation
+                    val smoothedRssi = smoothRssi(d.address, result.rssi)
                     val item = ScannedDevice(
                         address = d.address,
                         name = result.scanRecord?.deviceName ?: d.name ?: d.address,
-                        rssi = result.rssi,
+                        rssi = smoothedRssi,
                         hasConfigService = true
                     )
                     devices[d.address] = item
