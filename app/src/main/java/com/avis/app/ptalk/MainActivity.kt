@@ -16,23 +16,25 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
+import com.avis.app.ptalk.core.network.TokenManager
 import com.avis.app.ptalk.navigation.ConfigAppNavGraph
+import com.avis.app.ptalk.navigation.Route
 import com.avis.app.ptalk.ui.theme.AppColors
 import com.avis.app.ptalk.ui.theme.appColors
 import dagger.hilt.android.AndroidEntryPoint
 import org.thingai.android.module.meo.MeoSdk
 import org.thingai.base.log.ILog
+import javax.inject.Inject
 
 // Global composition local for theme colors
 val LocalAppColors = compositionLocalOf<AppColors> { error("No AppColors provided") }
 
-/**
- * Simplified MainActivity for config-only app
- * No authentication, no database, just BLE config
- * Supports system dark/light theme
- */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var tokenManager: TokenManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -41,9 +43,11 @@ class MainActivity : ComponentActivity() {
 
         MeoSdk.init(this.applicationContext)
 
-        // Simple splash screen - no auth check needed
+        // Simple splash screen
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { false }
+
+        val startDest = if (tokenManager.getToken() != null) Route.HOME else Route.LOGIN
 
         enableEdgeToEdge()
         setContent {
@@ -68,6 +72,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     ConfigAppNavGraph(
                         navController = navController,
+                        startDestination = startDest,
                         modifier = Modifier.fillMaxSize()
                     )
                 }

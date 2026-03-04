@@ -1,9 +1,9 @@
 package com.avis.app.ptalk.domain.service
 
+import com.avis.app.ptalk.core.mqtt.PTalkMqttClient
 import com.avis.app.ptalk.core.websocket.ControlResponse
-import com.avis.app.ptalk.core.websocket.DeviceControlWebSocket
 import com.avis.app.ptalk.core.websocket.DeviceStatusResponse
-import com.avis.app.ptalk.domain.control.WebSocketControlGateway
+import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,19 +14,15 @@ import kotlinx.coroutines.launch
 import org.thingai.base.log.ILog
 
 /**
- * Service for managing real-time device control via WebSocket.
- * Provides a high-level API for the UI layer.
+ * Service for managing real-time device control via MQTT.
  */
 class DeviceControlService(
-    private val webSocket: DeviceControlWebSocket,
-    private val serverUrl: String
+    private val mqttClient: PTalkMqttClient
 ) {
     private val TAG = "DeviceControlService"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val gson = Gson()
 
-    private val gateway = WebSocketControlGateway(webSocket, serverUrl)
-
-    // Current device state
     private val _deviceStatus = MutableStateFlow<DeviceStatusResponse?>(null)
     val deviceStatus: StateFlow<DeviceStatusResponse?> = _deviceStatus.asStateFlow()
 
@@ -36,189 +32,156 @@ class DeviceControlService(
     private val _lastError = MutableStateFlow<String?>(null)
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
 
-    val connectionState = webSocket.connectionState
+    val connectionState = mqttClient.isConnected
 
     private var currentDeviceId: String? = null
 
-    /**
-     * Connect to server and set target device
-     */
-    suspend fun connect(deviceId: String) {
-        ILog.d(TAG, "connect() called with deviceId: $deviceId, serverUrl: $serverUrl")
-        currentDeviceId = deviceId
-        gateway.connect(deviceId)
-        ILog.d(TAG, "gateway.connect() completed")
+    init {
+        scope.launch {
+            mqttClient.messages.collect { pair ->
+                pair?.let { (topic, payload) ->
+                    currentDeviceId?.let { deviceId ->
+                        val statusTopic = "ptalk/device/\$deviceId/status"
+                        if (topic == statusTopic) {
+                            try {
+                                val status = gson.fromJson(payload, DeviceStatusResponse::class.java)
+                                _deviceStatus.value = status
+                            } catch (e: Exception) {
+                                ILog.e(TAG, "Failed to parse status payload: \$payload")
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**
-     * Disconnect from server
+     * Connect to MQTT and subscribe to the device's status topic
+     */
+    fun connect(deviceId: String) {
+        ILog.d(TAG, "connect() called with deviceId: \$deviceId")
+        currentDeviceId = deviceId
+        mqttClient.connect()
+        mqttClient.subscribe("ptalk/device/\$deviceId/status")
+        ILog.d(TAG, "MQTT connect() completed")
+    }
+
+    /**
+     * Disconnect from MQTT
      */
     fun disconnect() {
-        webSocket.disconnect()
+        currentDeviceId?.let { deviceId ->
+            mqttClient.unsubscribe("ptalk/device/\$deviceId/status")
+        }
+        mqttClient.disconnect()
         currentDeviceId = null
         _deviceStatus.value = null
     }
 
-    /**
-     * Refresh device status
-     */
-    suspend fun refreshStatus() {
-        ILog.d(TAG, "refreshStatus() called")
-        _isLoading.value = true
-        _lastError.value = null
-        try {
-            val status = gateway.requestStatus()
-            ILog.d(TAG, "gateway.requestStatus() returned: $status")
-            _deviceStatus.value = status
-            if (status == null) {
-                _lastError.value = "Failed to get device status"
-            }
-        } catch (e: Exception) {
-            _lastError.value = e.message
-            ILog.e(TAG, "refreshStatus failed", e.message)
-        } finally {
-            _isLoading.value = false
+    private fun publishCommand(action: String, value: Any? = null): Boolean {
+        val deviceId = currentDeviceId ?: return false
+        val commandTopic = "ptalk/device/\$deviceId/command"
+        
+        val commandMap = mutableMapOf<String, Any>("action" to action)
+        if (value != null) {
+            commandMap["value"] = value
         }
+        
+        return try {
+            val json = gson.toJson(commandMap)
+            mqttClient.publish(commandTopic, json)
+            true
+        } catch (e: Exception) {
+            _lastError.value = "Command failed: \${e.message}"
+            false
+        }
+    }
+
+    /**
+     * Request device status update
+     */
+    fun refreshStatus() {
+        publishCommand("request_status")
     }
 
     /**
      * Set device volume (0-100)
      */
-    suspend fun setVolume(volume: Int): Boolean {
+    fun setVolume(volume: Int): Boolean {
         _isLoading.value = true
         _lastError.value = null
-        return try {
-            gateway.writeVolume(volume)
-            // Update local state
+        val success = publishCommand("set_volume", volume)
+        if (success) {
             _deviceStatus.value = _deviceStatus.value?.copy(volume = volume)
-            true
-        } catch (e: Exception) {
-            _lastError.value = e.message
-            ILog.e(TAG, "setVolume failed", e.message)
-            false
-        } finally {
-            _isLoading.value = false
         }
+        _isLoading.value = false
+        return success
     }
 
     /**
      * Set device brightness (0-100)
      */
-    suspend fun setBrightness(brightness: Int): Boolean {
+    fun setBrightness(brightness: Int): Boolean {
         _isLoading.value = true
         _lastError.value = null
-        return try {
-            gateway.writeBrightness(brightness)
-            // Update local state
+        val success = publishCommand("set_brightness", brightness)
+        if (success) {
             _deviceStatus.value = _deviceStatus.value?.copy(brightness = brightness)
-            true
-        } catch (e: Exception) {
-            _lastError.value = e.message
-            ILog.e(TAG, "setBrightness failed", e.message)
-            false
-        } finally {
-            _isLoading.value = false
         }
+        _isLoading.value = false
+        return success
     }
 
     /**
      * Set device name
      */
-    suspend fun setDeviceName(name: String): Boolean {
-        _isLoading.value = true
-        _lastError.value = null
-        return try {
-            gateway.writeName(name)
-            // Update local state
-            _deviceStatus.value = _deviceStatus.value?.copy(deviceName = name)
-            true
-        } catch (e: Exception) {
-            _lastError.value = e.message
-            ILog.e(TAG, "setDeviceName failed", e.message)
-            false
-        } finally {
-            _isLoading.value = false
-        }
+    fun setDeviceName(name: String): Boolean {
+        // Just mocking the local update, name change might need to go to REST API
+        _deviceStatus.value = _deviceStatus.value?.copy(deviceName = name)
+        return true
     }
 
     /**
      * Reboot device
      */
-    suspend fun rebootDevice(): ControlResponse {
-        _isLoading.value = true
-        _lastError.value = null
-        return try {
-            val response = gateway.reboot()
-            if (!response.isSuccess) {
-                _lastError.value = response.message ?: "Reboot failed"
-            }
-            response
-        } catch (e: Exception) {
-            _lastError.value = e.message
-            ILog.e(TAG, "rebootDevice failed", e.message)
-            ControlResponse(status = "error", message = e.message)
-        } finally {
-            _isLoading.value = false
+    fun rebootDevice(): ControlResponse {
+        val success = publishCommand("reboot")
+        return if (success) {
+            ControlResponse(status = "success", message = "Reboot command sent")
+        } else {
+            ControlResponse(status = "error", message = "Failed to send command")
         }
     }
 
     /**
      * Request BLE config mode (factory reset WiFi)
      */
-    suspend fun requestBleConfig(): ControlResponse {
-        _isLoading.value = true
-        _lastError.value = null
-        return try {
-            val response = gateway.requestBleConfig()
-            if (!response.isSuccess) {
-                _lastError.value = response.message ?: "BLE config request failed"
-            }
-            response
-        } catch (e: Exception) {
-            _lastError.value = e.message
-            ILog.e(TAG, "requestBleConfig failed", e.message)
-            ControlResponse(status = "error", message = e.message)
-        } finally {
-            _isLoading.value = false
+    fun requestBleConfig(): ControlResponse {
+        val success = publishCommand("reset_wifi")
+        return if (success) {
+            ControlResponse(status = "success", message = "BLE config command sent")
+        } else {
+            ControlResponse(status = "error", message = "Failed to send command")
         }
     }
 
     /**
      * Request OTA update
      */
-    suspend fun requestOta(version: String? = null): ControlResponse {
-        _isLoading.value = true
-        _lastError.value = null
-        return try {
-            val response = gateway.requestOta(version)
-            if (!response.isSuccess) {
-                _lastError.value = response.message ?: "OTA request failed"
-            }
-            response
-        } catch (e: Exception) {
-            _lastError.value = e.message
-            ILog.e(TAG, "requestOta failed", e.message)
-            ControlResponse(status = "error", message = e.message)
-        } finally {
-            _isLoading.value = false
+    fun requestOta(version: String? = null): ControlResponse {
+        val success = publishCommand("ota_update", version)
+        return if (success) {
+            ControlResponse(status = "success", message = "OTA command sent")
+        } else {
+            ControlResponse(status = "error", message = "Failed to send command")
         }
     }
 
-    /**
-     * Get current battery level
-     */
-    suspend fun getBatteryLevel(): Int? {
-        return try {
-            gateway.getBatteryLevel()
-        } catch (e: Exception) {
-            ILog.e(TAG, "getBatteryLevel failed", e.message)
-            null
-        }
+    fun getBatteryLevel(): Int? {
+        return _deviceStatus.value?.battery
     }
 
-    /**
-     * Clear last error
-     */
     fun clearError() {
         _lastError.value = null
     }

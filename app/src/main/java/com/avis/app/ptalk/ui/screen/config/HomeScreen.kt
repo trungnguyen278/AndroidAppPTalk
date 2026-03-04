@@ -50,19 +50,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.avis.app.ptalk.LocalAppColors
 import com.avis.app.ptalk.R
 import com.avis.app.ptalk.ui.theme.TechColors
+import com.avis.app.ptalk.ui.viewmodel.VMHome
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.clickable
 
 /**
- * Home Screen - Shows PTIT logo and button to enter scan screen
+ * Home Screen - Shows PTIT logo, user devices, and button to connect new device
  */
 @Composable
 fun HomeScreen(
-    onNavigateToScan: () -> Unit
+    onNavigateToScan: () -> Unit,
+    onNavigateToControl: (String, String) -> Unit,
+    viewModel: VMHome = hiltViewModel()
 ) {
-    val colors = LocalAppColors.current
-    
+    val uiState by viewModel.uiState.collectAsState()
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -82,12 +88,11 @@ fun HomeScreen(
             Image(
                 painter = painterResource(id = R.drawable.logo_ptit),
                 contentDescription = "PTIT University Logo",
-                modifier = Modifier.size(140.dp)
+                modifier = Modifier.size(100.dp)
             )
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            // University name
             Text(
                 text = "HỌC VIỆN CÔNG NGHỆ",
                 style = MaterialTheme.typography.titleMedium.copy(
@@ -97,7 +102,6 @@ fun HomeScreen(
                 color = TechColors.PTITRed,
                 textAlign = TextAlign.Center
             )
-            
             Text(
                 text = "BƯU CHÍNH VIỄN THÔNG",
                 style = MaterialTheme.typography.titleMedium.copy(
@@ -110,79 +114,77 @@ fun HomeScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // User Guide Card
-            Card(
+            // Devices Section
+            Text(
+                text = "Thiết bị của bạn",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = colors.textPrimary,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = colors.card
+                textAlign = TextAlign.Start
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (uiState.isLoading) {
+                CircularProgressIndicator(color = TechColors.PTITRed)
+            } else if (!uiState.error.isNullOrEmpty()) {
+                Text(
+                    text = uiState.error!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
                 )
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp)
+            } else if (uiState.devices.isEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = colors.card)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                    PaddingValues(20.dp)
+                    Text(
+                        "Bạn chưa có thiết bị nào. Nhấn Bắt đầu cấu hình để thêm mới.",
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(20.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                uiState.devices.forEach { device ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp)
+                            .clickable { onNavigateToControl(device.mac_address, device.label) },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = colors.card),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = null,
-                            tint = TechColors.PTITRed,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Hướng dẫn sử dụng",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = colors.textPrimary
-                        )
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(TechColors.PTITRed.copy(alpha = 0.1f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.TouchApp, null, tint = TechColors.PTITRed)
+                            }
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = device.label,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = colors.textPrimary
+                                )
+                                Text(
+                                    text = "MAC: \${device.mac_address}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colors.textSecondary
+                                )
+                            }
+                        }
                     }
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Step 1
-                    GuideStep(
-                        stepNumber = 1,
-                        icon = Icons.Default.Search,
-                        title = "Quét thiết bị",
-                        description = "Nhấn nút \"Bắt đầu cấu hình\" bên dưới để quét các thiết bị PTalk xung quanh",
-                        colors = colors
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Step 2
-                    GuideStep(
-                        stepNumber = 2,
-                        icon = Icons.Default.RadioButtonChecked,
-                        title = "Xem trên radar",
-                        description = "Thiết bị sẽ xuất hiện trên màn hình radar. Gần tâm = tín hiệu mạnh",
-                        colors = colors
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Step 3
-                    GuideStep(
-                        stepNumber = 3,
-                        icon = Icons.Default.TouchApp,
-                        title = "Chọn thiết bị",
-                        description = "Nhấn vào biểu tượng Bluetooth màu xanh trên radar để chọn thiết bị cần cấu hình",
-                        colors = colors
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    // Step 4
-                    GuideStep(
-                        stepNumber = 4,
-                        icon = Icons.Default.Settings,
-                        title = "Cấu hình WiFi",
-                        description = "Nhập thông tin WiFi (SSID và mật khẩu) để thiết bị kết nối mạng",
-                        colors = colors
-                    )
                 }
             }
             
