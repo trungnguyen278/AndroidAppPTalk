@@ -57,6 +57,8 @@ import com.avis.app.ptalk.ui.theme.TechColors
 import com.avis.app.ptalk.ui.viewmodel.VMHome
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 /**
  * Home Screen - Shows PTIT logo, user devices, and button to connect new device
@@ -67,6 +69,7 @@ fun HomeScreen(
     onNavigateToControl: (String, String) -> Unit,
     viewModel: VMHome = hiltViewModel()
 ) {
+    val colors = LocalAppColors.current
     val uiState by viewModel.uiState.collectAsState()
 
     Box(
@@ -139,7 +142,7 @@ fun HomeScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = colors.card)
                 ) {
-                    PaddingValues(20.dp)
+
                     Text(
                         "Bạn chưa có thiết bị nào. Nhấn Bắt đầu cấu hình để thêm mới.",
                         color = colors.textSecondary,
@@ -178,7 +181,7 @@ fun HomeScreen(
                                     color = colors.textPrimary
                                 )
                                 Text(
-                                    text = "MAC: \${device.mac_address}",
+                                    text = "MAC: ${device.mac_address}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.textSecondary
                                 )

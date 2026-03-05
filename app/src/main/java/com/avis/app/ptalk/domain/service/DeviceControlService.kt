@@ -179,7 +179,7 @@ class DeviceControlService(
     }
 
     fun getBatteryLevel(): Int? {
-        return _deviceStatus.value?.battery
+        return _deviceStatus.value?.batteryLevel
     }
 
     fun clearError() {

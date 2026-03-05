@@ -85,8 +85,8 @@ fun SignupScreen(
                 label = { Text("Tên người dùng *") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = TechColors.PTITRed,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
                     focusedLabelColor = TechColors.PTITRed
                 )
             )
@@ -100,8 +100,8 @@ fun SignupScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = TechColors.PTITRed,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
                     focusedLabelColor = TechColors.PTITRed
                 )
             )
@@ -115,8 +115,8 @@ fun SignupScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = TechColors.PTITRed,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
                     focusedLabelColor = TechColors.PTITRed
                 )
             )
@@ -137,8 +137,8 @@ fun SignupScreen(
                         Icon(imageVector = image, contentDescription = "Toggle password visibility")
                     }
                 },
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = TechColors.PTITRed,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
                     focusedLabelColor = TechColors.PTITRed
                 )
             )
@@ -153,8 +153,8 @@ fun SignupScreen(
                 singleLine = true,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = TechColors.PTITRed,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
                     focusedLabelColor = TechColors.PTITRed
                 )
             )

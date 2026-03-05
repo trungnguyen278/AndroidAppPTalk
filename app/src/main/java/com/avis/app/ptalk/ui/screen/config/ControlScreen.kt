@@ -45,15 +45,15 @@ fun ControlScreen(
 
     LaunchedEffect(status) {
         status?.let {
-            volume = it.volume.toFloat()
-            brightness = it.brightness.toFloat()
+            volume = (it.volume ?: 50).toFloat()
+            brightness = (it.brightness ?: 50).toFloat()
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Điều khiển: \$deviceName") },
+                title = { Text("Điều khiển: $deviceName") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -96,7 +96,7 @@ fun ControlScreen(
                     status?.let { st ->
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "Pin thiết bị: \${st.battery}%",
+                            "Pin thiết bị: ${st.batteryLevel ?: "?"}%",
                             color = colors.textSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -123,7 +123,7 @@ fun ControlScreen(
                     ),
                     enabled = isConnected
                 )
-                Text("\${volume.toInt()}%", color = colors.textSecondary)
+                Text("${volume.toInt()}%", color = colors.textSecondary)
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -145,7 +145,7 @@ fun ControlScreen(
                     ),
                     enabled = isConnected
                 )
-                Text("\${brightness.toInt()}%", color = colors.textSecondary)
+                Text("${brightness.toInt()}%", color = colors.textSecondary)
             }
 
             Spacer(modifier = Modifier.height(48.dp))

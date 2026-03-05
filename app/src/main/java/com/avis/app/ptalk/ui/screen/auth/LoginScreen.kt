@@ -92,8 +92,8 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = TechColors.PTITRed,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
                     focusedLabelColor = TechColors.PTITRed
                 )
             )
@@ -114,8 +114,8 @@ fun LoginScreen(
                         Icon(imageVector = image, contentDescription = "Toggle password visibility")
                     }
                 },
-                colors = TextFieldDefaults.outlinedTextFieldColors(
-                    focusedBorderColor = TechColors.PTITRed,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
                     focusedLabelColor = TechColors.PTITRed
                 )
             )
