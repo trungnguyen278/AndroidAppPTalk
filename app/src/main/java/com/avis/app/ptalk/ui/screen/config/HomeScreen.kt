@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.Search
@@ -36,6 +37,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,6 +69,7 @@ import androidx.compose.runtime.getValue
 fun HomeScreen(
     onNavigateToScan: () -> Unit,
     onNavigateToControl: (String, String) -> Unit,
+    onSignOut: () -> Unit = {},
     viewModel: VMHome = hiltViewModel()
 ) {
     val colors = LocalAppColors.current
@@ -156,7 +159,7 @@ fun HomeScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 12.dp)
-                            .clickable { onNavigateToControl(device.mac_address, device.label) },
+                            .clickable { onNavigateToControl(device.macAddress, device.name ?: device.macAddress) },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = colors.card),
                         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -176,12 +179,12 @@ fun HomeScreen(
                             Spacer(Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = device.label,
+                                    text = device.name ?: "Thiết bị không tên",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = colors.textPrimary
                                 )
                                 Text(
-                                    text = "MAC: ${device.mac_address}",
+                                    text = "MAC: ${device.macAddress}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.textSecondary
                                 )
@@ -219,6 +222,36 @@ fun HomeScreen(
                 )
             }
             
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Sign out button
+            OutlinedButton(
+                onClick = {
+                    viewModel.signOut()
+                    onSignOut()
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, colors.textSecondary.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ExitToApp,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = colors.textSecondary
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = "Đăng xuất",
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = colors.textSecondary
+                )
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

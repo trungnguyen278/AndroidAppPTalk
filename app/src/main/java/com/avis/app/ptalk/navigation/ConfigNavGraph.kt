@@ -58,6 +58,11 @@ fun ConfigAppNavGraph(
                 },
                 onNavigateToControl = { macAddress, deviceName ->
                     navController.navigate("\${Route.CONTROL}/\$macAddress/\$deviceName")
+                },
+                onSignOut = {
+                    navController.navigate(Route.LOGIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

@@ -4,8 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.avis.app.ptalk.core.ble.BleClient
 import com.avis.app.ptalk.core.ble.ScannedDevice
+import com.avis.app.ptalk.core.network.CreateDeviceRequest
+import com.avis.app.ptalk.core.network.IoTPlatformApi
 import com.avis.app.ptalk.domain.control.ControlGateway
 import com.avis.app.ptalk.domain.control.WifiNetwork
+import com.avis.app.ptalk.domain.data.local.repo.DeviceRepository
+import com.avis.app.ptalk.domain.model.Device
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -18,13 +22,15 @@ import org.thingai.base.log.ILog
 import javax.inject.Inject
 
 /**
- * ViewModel for simplified config-only app
- * No database storage - just BLE config and forget
+ * ViewModel for device config
+ * Scan BLE -> Config -> Save to local DB -> Post to server
  */
 @HiltViewModel
 class VMConfigDevice @Inject constructor(
     private val ble: BleClient,
-    private val controlGateway: ControlGateway
+    private val controlGateway: ControlGateway,
+    private val deviceRepository: DeviceRepository,
+    private val api: IoTPlatformApi
 ) : ViewModel() {
     private val TAG = "VMConfigDevice"
 
@@ -151,8 +157,7 @@ class VMConfigDevice @Inject constructor(
     }
 
     /**
-     * Configure device without saving to database
-     * Just write config via BLE and disconnect
+     * Configure device via BLE, save to local DB, then post to server
      */
     fun configDevice(
         ssid: String,
@@ -172,7 +177,33 @@ class VMConfigDevice @Inject constructor(
                 controlGateway.writeBrightness((brightness * 100).toInt())
                 controlGateway.saveConfig()
 
-                ILog.d(TAG, "configDevice", "Config saved successfully")
+                ILog.d(TAG, "configDevice", "BLE config saved successfully")
+
+                // --- Save to local Room database ---
+                val address = deviceAddress ?: ""
+                val deviceName = _ui.value.devices.find { it.address == address }?.name ?: "PTalk Device"
+                val device = Device(deviceName, address)
+                device.deviceId = _ui.value.deviceId.ifEmpty { null }
+
+                deviceRepository.upsert(device)
+                ILog.d(TAG, "configDevice", "Device saved to local DB: name=$deviceName, mac=$address")
+
+                // --- Post to server ---
+                try {
+                    val result = api.createDevice(
+                        CreateDeviceRequest(
+                            label = deviceName,
+                            macAddress = address,
+                            compatibleAppVersion = device.appVersion,
+                            buildNumber = device.buildInfo
+                        )
+                    )
+                    ILog.d(TAG, "configDevice", "Device posted to server: id=${result.id}")
+                } catch (e: Exception) {
+                    // Server post failure is non-blocking, device is saved locally
+                    ILog.e(TAG, "configDevice", "Post to server failed: ${e.message}")
+                }
+
                 onSuccess()
             } catch (e: Exception) {
                 ILog.e(TAG, "configDevice", e.message)

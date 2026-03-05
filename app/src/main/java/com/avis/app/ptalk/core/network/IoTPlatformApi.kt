@@ -1,8 +1,10 @@
 package com.avis.app.ptalk.core.network
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 
 // --- Auth Requests & Responses ---
@@ -35,13 +37,23 @@ data class UserDto(
 
 // --- Device Requests & Responses ---
 
-data class DeviceDto(
-    val id: String, // Note: This is CloudIoTPlatform's 24-char generated ID
+data class CreateDeviceRequest(
     val label: String,
-    val mac_address: String, // This is the eFuse MAC we need for MQTT!
-    val is_active: Boolean,
-    val user_id: String,
-    val product_id: String?
+    val productId: String? = null,
+    val macAddress: String,
+    val compatibleAppVersion: String? = null,
+    val firmwareVersion: String? = null,
+    val buildNumber: String? = null,
+    val deviceType: Int = 0,
+    val connectionType: Int = 0,
+    val model: String? = null
+)
+
+data class DeviceResponse(
+    val id: String,
+    val label: String,
+    val userId: String,
+    val productId: String?
 )
 
 interface IoTPlatformApi {
@@ -51,6 +63,19 @@ interface IoTPlatformApi {
     @POST("api/v1/auth/signup")
     suspend fun signup(@Body request: SignupRequest): UserDto
 
-    @GET("api/v1/devices")
-    suspend fun getMyDevices(): List<DeviceDto>
+    @POST("api/v1/devices")
+    suspend fun createDevice(@Body request: CreateDeviceRequest): DeviceResponse
+
+    @GET("api/v1/devices/{device_id}")
+    suspend fun getDevice(@Path("device_id") deviceId: String): DeviceResponse
+
+    @PUT("api/v1/devices/{device_id}")
+    suspend fun updateDevice(
+        @Path("device_id") deviceId: String,
+        @Body request: CreateDeviceRequest
+    ): DeviceResponse
+
+    @DELETE("api/v1/devices/{device_id}")
+    suspend fun deleteDevice(@Path("device_id") deviceId: String)
 }
+
