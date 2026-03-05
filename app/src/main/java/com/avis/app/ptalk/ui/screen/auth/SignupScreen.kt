@@ -40,7 +40,7 @@ fun SignupScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val colors = LocalAppColors.current
-
+    var authUsername by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -78,7 +78,17 @@ fun SignupScreen(
             )
             
             Spacer(modifier = Modifier.height(32.dp))
-
+            OutlinedTextField(
+                value = authUsername,
+                onValueChange = { authUsername = it; viewModel.clearError() },
+                label = { Text("Tên đăng nhập *") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = TechColors.PTITRed,
+                    focusedLabelColor = TechColors.PTITRed
+                )
+            )
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it; viewModel.clearError() },
@@ -174,7 +184,30 @@ fun SignupScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { viewModel.signup(email, password, passConfirm, username, phone) },
+                onClick = {
+
+                            if (
+                                authUsername.isBlank() ||
+                                username.isBlank() ||
+                                password.isBlank() ||
+                                passConfirm.isBlank()
+                            ) {
+                                return@Button
+                            }
+
+                            if (password != passConfirm) {
+                                return@Button
+                            }
+
+                            viewModel.signup(
+                                            authUsername = authUsername,
+                                            email = email,
+                                            pass = password,
+                                            passConfirm = passConfirm,
+                                            username = username,
+                                            phone = phone
+                                        )
+                        },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),

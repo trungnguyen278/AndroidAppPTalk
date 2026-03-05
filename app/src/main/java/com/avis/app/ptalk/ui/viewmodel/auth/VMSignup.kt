@@ -24,7 +24,14 @@ class VMSignup @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
-    fun signup(email: String, pass: String, passConfirm: String, username: String, phone: String) {
+    fun signup(
+                    authUsername: String,
+                    email: String,
+                    pass: String,
+                    passConfirm: String,
+                    username: String,
+                    phone: String
+                ) {
         if (email.isBlank() || pass.isBlank() || passConfirm.isBlank() || username.isBlank()) {
             _uiState.value = UiState(error = "Vui lòng nhập các trường bắt buộc")
             return
@@ -43,7 +50,7 @@ class VMSignup @Inject constructor(
         _uiState.value = UiState(isLoading = true)
 
         viewModelScope.launch {
-            val result = authRepo.signup(email, pass, username, phone.ifBlank { null })
+            val result = authRepo.signup(authUsername, email, pass, username, phone.ifBlank { null })
             
             if (result.isSuccess) {
                 _uiState.value = UiState(success = true)

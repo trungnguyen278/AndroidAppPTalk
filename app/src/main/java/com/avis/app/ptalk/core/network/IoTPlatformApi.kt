@@ -8,7 +8,7 @@ import retrofit2.http.Path
 // --- Auth Requests & Responses ---
 
 data class LoginRequest(
-    val email_or_phone: String,
+    val auth_username: String,
     val password: String
 )
 
@@ -19,9 +19,10 @@ data class LoginResponse(
 )
 
 data class SignupRequest(
-    val email: String,
+    val auth_username: String,
+    val username: String,
     val password: String,
-    val username: String? = null,
+    val email: String? = null,
     val phone_number: String? = null
 )
 
