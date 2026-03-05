@@ -41,7 +41,7 @@ class DeviceControlService(
             mqttClient.messages.collect { pair ->
                 pair?.let { (topic, payload) ->
                     currentDeviceId?.let { deviceId ->
-                        val statusTopic = "ptalk/device/\$deviceId/status"
+                        val statusTopic = "devices/${deviceId}/status"
                         if (topic == statusTopic) {
                             try {
                                 val status = gson.fromJson(payload, DeviceStatusResponse::class.java)
@@ -60,10 +60,10 @@ class DeviceControlService(
      * Connect to MQTT and subscribe to the device's status topic
      */
     fun connect(deviceId: String) {
-        ILog.d(TAG, "connect() called with deviceId: \$deviceId")
+        ILog.d(TAG, "connect() called with deviceId: ${deviceId}")
         currentDeviceId = deviceId
         mqttClient.connect()
-        mqttClient.subscribe("ptalk/device/\$deviceId/status")
+        mqttClient.subscribe("devices/${deviceId}/status")
         ILog.d(TAG, "MQTT connect() completed")
     }
 
@@ -72,7 +72,7 @@ class DeviceControlService(
      */
     fun disconnect() {
         currentDeviceId?.let { deviceId ->
-            mqttClient.unsubscribe("ptalk/device/\$deviceId/status")
+            mqttClient.unsubscribe("devices/${deviceId}/status")
         }
         mqttClient.disconnect()
         currentDeviceId = null
@@ -81,11 +81,16 @@ class DeviceControlService(
 
     private fun publishCommand(action: String, value: Any? = null): Boolean {
         val deviceId = currentDeviceId ?: return false
-        val commandTopic = "ptalk/device/\$deviceId/command"
+        val commandTopic = "devices/${deviceId}/cmd"
         
-        val commandMap = mutableMapOf<String, Any>("action" to action)
+        val commandMap = mutableMapOf<String, Any>("cmd" to action)
         if (value != null) {
-            commandMap["value"] = value
+            when (action) {
+                "set_volume" -> commandMap["volume"] = value
+                "set_brightness" -> commandMap["brightness"] = value
+                "set_device_name" -> commandMap["device_name"] = value
+                else -> commandMap["value"] = value
+            }
         }
         
         return try {

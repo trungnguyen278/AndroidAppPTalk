@@ -1,5 +1,6 @@
 package com.avis.app.ptalk.core.websocket
 
+import com.google.gson.annotations.SerializedName
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import kotlinx.coroutines.CoroutineScope
@@ -277,15 +278,15 @@ data class ControlResponse(
  * Device status/response data
  */
 data class DeviceStatusResponse(
-    val deviceId: String? = null,
-    val status: String? = null,
-    val batteryLevel: Int? = null,
-    val volume: Int? = null,
-    val brightness: Int? = null,
-    val deviceName: String? = null,
-    val firmwareVersion: String? = null,
-    val wifiSsid: String? = null,
-    val wifiRssi: Int? = null,
-    val connectivityState: String? = null,
-    val uptimeSec: Int? = null
+    @SerializedName("device_id") val deviceId: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName(value = "batteryLevel", alternate = ["battery_level", "battery_percent"]) val batteryLevel: Int? = null,
+    @SerializedName("volume") val volume: Int? = null,
+    @SerializedName("brightness") val brightness: Int? = null,
+    @SerializedName("device_name") val deviceName: String? = null,
+    @SerializedName("firmware_version") val firmwareVersion: String? = null,
+    @SerializedName("wifi_ssid") val wifiSsid: String? = null,
+    @SerializedName("wifi_rssi") val wifiRssi: Int? = null,
+    @SerializedName("connectivity_state") val connectivityState: String? = null,
+    @SerializedName("uptime_sec") val uptimeSec: Int? = null
 )

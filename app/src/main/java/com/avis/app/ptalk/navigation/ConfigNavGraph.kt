@@ -57,7 +57,7 @@ fun ConfigAppNavGraph(
                     navController.navigate(Route.SCAN_DEVICE)
                 },
                 onNavigateToControl = { macAddress, deviceName ->
-                    navController.navigate("\${Route.CONTROL}/\$macAddress/\$deviceName")
+                    navController.navigate("${Route.CONTROL}/$macAddress/$deviceName")
                 },
                 onSignOut = {
                     navController.navigate(Route.LOGIN) {
@@ -79,7 +79,7 @@ fun ConfigAppNavGraph(
             )
         }
 
-        composable("\${Route.CONTROL}/{macAddress}/{deviceName}") { backStackEntry ->
+        composable("${Route.CONTROL}/{macAddress}/{deviceName}") { backStackEntry ->
             val macAddress = backStackEntry.arguments?.getString("macAddress") ?: ""
             val deviceName = backStackEntry.arguments?.getString("deviceName") ?: "PTalk Device"
             com.avis.app.ptalk.ui.screen.config.ControlScreen(

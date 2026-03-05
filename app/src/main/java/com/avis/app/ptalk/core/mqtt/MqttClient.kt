@@ -53,7 +53,7 @@ class PTalkMqttClient {
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
                     if (topic != null && message != null) {
                         val payload = String(message.payload)
-                        ILog.d(TAG, "Message arrived: \$topic -> \$payload")
+                        ILog.d(TAG, "Message arrived: $topic -> $payload")
                         _messages.value = Pair(topic, payload)
                     }
                 }
@@ -115,7 +115,7 @@ class PTalkMqttClient {
                     isRetained = false
                 }
                 client?.publish(topic, mqttMessage)
-                ILog.d(TAG, "Published to \$topic: \$message")
+                ILog.d(TAG, "Published to $topic: $message")
             } else {
                 ILog.w(TAG, "Cannot publish to \$topic: not connected")
             }

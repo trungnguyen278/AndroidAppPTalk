@@ -35,6 +35,7 @@ fun ControlScreen(
     val status by viewModel.deviceStatus.collectAsState()
     val isConnected by viewModel.connectionState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isDeviceOnline = status != null
 
     var volume by remember { mutableStateOf(50f) }
     var brightness by remember { mutableStateOf(50f) }
@@ -87,16 +88,29 @@ fun ControlScreen(
                         color = colors.textPrimary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val connectionText = when {
+                        isDeviceOnline -> "Thiết bị trực tuyến"
+                        isConnected -> "Đang chờ thiết bị..."
+                        else -> "Đang kết nối MQTT..."
+                    }
+                    
+                    val connectionColor = when {
+                        isDeviceOnline -> Color(0xFF4CAF50)
+                        isConnected -> TechColors.OrangeAccent
+                        else -> TechColors.PTITRed
+                    }
+                    
                     Text(
-                        if (isConnected) "Đã kết nối qua MQTT" else "Đang kết nối...",
-                        color = if (isConnected) Color(0xFF4CAF50) else TechColors.OrangeAccent,
+                        connectionText,
+                        color = connectionColor,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
                     )
                     
                     status?.let { st ->
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            "Pin thiết bị: ${st.batteryLevel ?: "?"}%",
+                            "Pin thiết bị: ${st.batteryLevel ?: "?"}% | Uptime: ${st.uptimeSec ?: "?"}s",
                             color = colors.textSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -121,7 +135,7 @@ fun ControlScreen(
                         thumbColor = TechColors.PTITRed,
                         activeTrackColor = TechColors.PTITRed
                     ),
-                    enabled = isConnected
+                    enabled = isConnected && isDeviceOnline
                 )
                 Text("${volume.toInt()}%", color = colors.textSecondary)
             }
@@ -143,7 +157,7 @@ fun ControlScreen(
                         thumbColor = TechColors.OrangeAccent,
                         activeTrackColor = TechColors.OrangeAccent
                     ),
-                    enabled = isConnected
+                    enabled = isConnected && isDeviceOnline
                 )
                 Text("${brightness.toInt()}%", color = colors.textSecondary)
             }
@@ -157,7 +171,7 @@ fun ControlScreen(
             Button(
                 onClick = { viewModel.rebootDevice() },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                enabled = isConnected && !isLoading,
+                enabled = isConnected && isDeviceOnline && !isLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = DefaultCardColors, contentColor = Color.White),
                 shape = RoundedCornerShape(16.dp)
             ) {

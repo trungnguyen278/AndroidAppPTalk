@@ -27,11 +27,13 @@ class VMControl @Inject constructor(
     fun initConnection(macAddress: String) {
         _deviceId.value = macAddress
         controlService.connect(macAddress)
+        
         // Request initial status when connected
         viewModelScope.launch {
-            kotlinx.coroutines.delay(1000)
-            if (connectionState.value) {
-                controlService.refreshStatus()
+            connectionState.collect { connected ->
+                if (connected) {
+                    controlService.refreshStatus()
+                }
             }
         }
     }
