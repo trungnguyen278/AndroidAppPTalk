@@ -63,8 +63,20 @@ class DeviceControlService(
         ILog.d(TAG, "connect() called with deviceId: ${deviceId}")
         currentDeviceId = deviceId
         mqttClient.connect()
-        mqttClient.subscribe("devices/${deviceId}/status")
-        ILog.d(TAG, "MQTT connect() completed")
+
+        // Wait for actual connection before subscribing & requesting status
+        scope.launch {
+            mqttClient.isConnected.collect { connected ->
+                if (connected) {
+                    ILog.d(TAG, "MQTT connected, now subscribing to devices/${deviceId}/status")
+                    mqttClient.subscribe("devices/${deviceId}/status")
+                    refreshStatus()
+                    return@collect
+                }
+            }
+        }
+
+        ILog.d(TAG, "MQTT connect() initiated")
     }
 
     /**
@@ -139,12 +151,17 @@ class DeviceControlService(
     }
 
     /**
-     * Set device name
+     * Set device name via MQTT command
      */
     fun setDeviceName(name: String): Boolean {
-        // Just mocking the local update, name change might need to go to REST API
-        _deviceStatus.value = _deviceStatus.value?.copy(deviceName = name)
-        return true
+        _isLoading.value = true
+        _lastError.value = null
+        val success = publishCommand("set_device_name", name)
+        if (success) {
+            _deviceStatus.value = _deviceStatus.value?.copy(deviceName = name)
+        }
+        _isLoading.value = false
+        return success
     }
 
     /**
@@ -160,10 +177,10 @@ class DeviceControlService(
     }
 
     /**
-     * Request BLE config mode (factory reset WiFi)
+     * Request BLE config mode
      */
     fun requestBleConfig(): ControlResponse {
-        val success = publishCommand("reset_wifi")
+        val success = publishCommand("request_ble_config")
         return if (success) {
             ControlResponse(status = "success", message = "BLE config command sent")
         } else {

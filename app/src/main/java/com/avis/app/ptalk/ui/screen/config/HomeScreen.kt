@@ -26,17 +26,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,6 +75,7 @@ import com.avis.app.ptalk.LocalAppColors
 import com.avis.app.ptalk.R
 import com.avis.app.ptalk.ui.theme.TechColors
 import com.avis.app.ptalk.ui.viewmodel.VMHome
+import com.avis.app.ptalk.domain.model.Device
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.collectAsState
@@ -91,7 +96,9 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var showProfileSheet by remember { mutableStateOf(false) }
+    var showDeviceManagement by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
+    val deviceSheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
 
     // Profile Bottom Sheet
@@ -107,6 +114,13 @@ fun HomeScreen(
                 phone = viewModel.getPhone(),
                 userId = viewModel.getUserId(),
                 colors = colors,
+                onManageDevices = {
+                    scope.launch {
+                        sheetState.hide()
+                        showProfileSheet = false
+                        showDeviceManagement = true
+                    }
+                },
                 onSignOut = {
                     scope.launch {
                         sheetState.hide()
@@ -115,6 +129,21 @@ fun HomeScreen(
                         onSignOut()
                     }
                 }
+            )
+        }
+    }
+
+    // Device Management Bottom Sheet
+    if (showDeviceManagement) {
+        ModalBottomSheet(
+            onDismissRequest = { showDeviceManagement = false },
+            sheetState = deviceSheetState,
+            containerColor = colors.card
+        ) {
+            DeviceManagementSheetContent(
+                devices = uiState.devices,
+                colors = colors,
+                onDeleteDevice = { device -> viewModel.deleteDevice(device) }
             )
         }
     }
@@ -424,6 +453,7 @@ private fun ProfileSheetContent(
     phone: String?,
     userId: String?,
     colors: com.avis.app.ptalk.ui.theme.AppColors,
+    onManageDevices: () -> Unit,
     onSignOut: () -> Unit
 ) {
     Column(
@@ -457,7 +487,7 @@ private fun ProfileSheetContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = username ?: "Người dùng",
+            text = username ?: "Ng\u01b0\u1eddi d\u00f9ng",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = colors.textPrimary
         )
@@ -482,7 +512,7 @@ private fun ProfileSheetContent(
         if (!phone.isNullOrBlank()) {
             ProfileInfoRow(
                 icon = Icons.Default.Phone,
-                label = "Số điện thoại",
+                label = "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i",
                 value = phone,
                 colors = colors
             )
@@ -502,7 +532,33 @@ private fun ProfileSheetContent(
 
         HorizontalDivider(color = colors.textSecondary.copy(alpha = 0.15f))
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Manage devices button
+        Button(
+            onClick = onManageDevices,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = TechColors.PTITRed,
+                contentColor = Color.White
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.PhoneAndroid,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Qu\u1ea3n l\u00fd thi\u1ebft b\u1ecb",
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Sign out button
         Button(
@@ -523,9 +579,116 @@ private fun ProfileSheetContent(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Đăng xuất",
+                text = "\u0110\u0103ng xu\u1ea5t",
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
             )
+        }
+    }
+}
+
+@Composable
+private fun DeviceManagementSheetContent(
+    devices: List<Device>,
+    colors: com.avis.app.ptalk.ui.theme.AppColors,
+    onDeleteDevice: (Device) -> Unit
+) {
+    var deviceToDelete by remember { mutableStateOf<Device?>(null) }
+
+    // Confirm delete dialog
+    deviceToDelete?.let { device ->
+        AlertDialog(
+            onDismissRequest = { deviceToDelete = null },
+            title = { Text("X\u00f3a thi\u1ebft b\u1ecb") },
+            text = {
+                Text("B\u1ea1n c\u00f3 ch\u1eafc mu\u1ed1n x\u00f3a thi\u1ebft b\u1ecb \"${device.name ?: device.macAddress}\"?\n\nThi\u1ebft b\u1ecb s\u1ebd \u0111\u01b0\u1ee3c chuy\u1ec3n v\u1ec1 ch\u1ebf \u0111\u1ed9 c\u1ea5u h\u00ecnh BLE.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteDevice(device)
+                        deviceToDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("X\u00f3a")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deviceToDelete = null }) {
+                    Text("H\u1ee7y")
+                }
+            }
+        )
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 32.dp)
+    ) {
+        Text(
+            text = "Qu\u1ea3n l\u00fd thi\u1ebft b\u1ecb",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (devices.isEmpty()) {
+            Text(
+                "Ch\u01b0a c\u00f3 thi\u1ebft b\u1ecb n\u00e0o.",
+                color = colors.textSecondary,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        } else {
+            devices.forEach { device ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = colors.background
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.PhoneAndroid,
+                            null,
+                            tint = TechColors.PTITRed,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                device.name ?: "Thi\u1ebft b\u1ecb",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = colors.textPrimary
+                            )
+                            Text(
+                                device.macAddress,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = colors.textSecondary
+                            )
+                        }
+                        IconButton(
+                            onClick = { deviceToDelete = device }
+                        ) {
+                            Icon(
+                                Icons.Default.Delete,
+                                "X\u00f3a",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

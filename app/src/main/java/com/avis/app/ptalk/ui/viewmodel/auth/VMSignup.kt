@@ -32,7 +32,7 @@ class VMSignup @Inject constructor(
                     username: String,
                     phone: String
                 ) {
-        if (email.isBlank() || pass.isBlank() || passConfirm.isBlank() || username.isBlank()) {
+        if (authUsername.isBlank() || email.isBlank() || pass.isBlank() || passConfirm.isBlank() || username.isBlank()) {
             _uiState.value = UiState(error = "Vui lòng nhập các trường bắt buộc")
             return
         }
@@ -47,6 +47,7 @@ class VMSignup @Inject constructor(
             return
         }
 
+        android.util.Log.d("API", "Signup request authUsername=$authUsername, email=$email, username=$username")
         _uiState.value = UiState(isLoading = true)
 
         viewModelScope.launch {

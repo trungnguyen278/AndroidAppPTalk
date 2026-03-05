@@ -185,20 +185,6 @@ fun SignupScreen(
 
             Button(
                 onClick = {
-
-                            if (
-                                authUsername.isBlank() ||
-                                username.isBlank() ||
-                                password.isBlank() ||
-                                passConfirm.isBlank()
-                            ) {
-                                return@Button
-                            }
-
-                            if (password != passConfirm) {
-                                return@Button
-                            }
-
                             viewModel.signup(
                                             authUsername = authUsername,
                                             email = email,

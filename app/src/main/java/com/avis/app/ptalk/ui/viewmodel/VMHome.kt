@@ -7,6 +7,7 @@ import com.avis.app.ptalk.core.network.IoTPlatformApi
 import com.avis.app.ptalk.domain.data.local.repo.AuthRepository
 import com.avis.app.ptalk.domain.data.local.repo.DeviceRepository
 import com.avis.app.ptalk.domain.model.Device
+import com.avis.app.ptalk.domain.service.DeviceControlService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,7 +19,8 @@ import javax.inject.Inject
 class VMHome @Inject constructor(
     private val api: IoTPlatformApi,
     private val authRepository: AuthRepository,
-    private val deviceRepository: DeviceRepository
+    private val deviceRepository: DeviceRepository,
+    private val controlService: DeviceControlService
 ) : ViewModel() {
 
     data class UiState(
@@ -53,6 +55,30 @@ class VMHome @Inject constructor(
                     isLoading = false,
                     error = e.message ?: "Lỗi tải danh sách thiết bị"
                 )
+            }
+        }
+    }
+
+    /**
+     * Delete device from local DB and send request_ble_config to put it back in BLE mode
+     */
+    fun deleteDevice(device: Device) {
+        viewModelScope.launch {
+            try {
+                // Send request_ble_config to device via MQTT before removing
+                val deviceId = device.deviceId ?: device.macAddress
+                controlService.connect(deviceId)
+                // Give time for MQTT to connect then send BLE config command
+                kotlinx.coroutines.delay(2000)
+                controlService.requestBleConfig()
+                kotlinx.coroutines.delay(500)
+                controlService.disconnect()
+
+                // Delete from local DB
+                deviceRepository.delete(device.macAddress)
+                android.util.Log.d("VMHome", "Device deleted: ${device.macAddress}")
+            } catch (e: Exception) {
+                android.util.Log.e("VMHome", "Delete device error", e)
             }
         }
     }
