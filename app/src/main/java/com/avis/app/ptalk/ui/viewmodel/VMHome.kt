@@ -60,4 +60,9 @@ class VMHome @Inject constructor(
     fun signOut() {
         authRepository.logout()
     }
+
+    fun getUsername(): String? = authRepository.getUsername()
+    fun getEmail(): String? = authRepository.getEmail()
+    fun getPhone(): String? = authRepository.getPhone()
+    fun getUserId(): String? = authRepository.getUserId()
 }

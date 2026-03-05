@@ -14,10 +14,15 @@ data class LoginRequest(
     val password: String
 )
 
-data class LoginResponse(
+// Server returns TokenResponse for both login and signup
+data class TokenResponse(
     val access_token: String,
-    val token_type: String = "bearer",
-    val user: UserDto
+    val refresh_token: String,
+    val token_type: String = "bearer"
+)
+
+data class RefreshRequest(
+    val refresh_token: String
 )
 
 data class SignupRequest(
@@ -28,41 +33,53 @@ data class SignupRequest(
     val phone_number: String? = null
 )
 
-data class UserDto(
-    val id: String,
-    val email: String?,
-    val phone_number: String?,
-    val username: String?
+// --- User ---
+
+// Response from GET /api/v1/me
+data class UserRead(
+    val userId: String,
+    val username: String,
+    val email: String,
+    val phone_number: String? = null
 )
 
 // --- Device Requests & Responses ---
 
 data class CreateDeviceRequest(
-    val label: String,
+    val label: String? = null,
     val productId: String? = null,
     val macAddress: String,
     val compatibleAppVersion: String? = null,
     val firmwareVersion: String? = null,
     val buildNumber: String? = null,
-    val deviceType: Int = 0,
-    val connectionType: Int = 0,
+    val deviceType: Int? = null,
+    val connectionType: Int? = null,
     val model: String? = null
 )
 
 data class DeviceResponse(
     val id: String,
-    val label: String,
+    val label: String? = null,
     val userId: String,
-    val productId: String?
+    val productId: String? = null
 )
 
 interface IoTPlatformApi {
+    // Auth
     @POST("api/v1/auth/login")
-    suspend fun login(@Body request: LoginRequest): LoginResponse
+    suspend fun login(@Body request: LoginRequest): TokenResponse
 
     @POST("api/v1/auth/signup")
-    suspend fun signup(@Body request: SignupRequest): UserDto
+    suspend fun signup(@Body request: SignupRequest): TokenResponse
 
+    @POST("api/v1/auth/refresh")
+    suspend fun refreshToken(@Body request: RefreshRequest): TokenResponse
+
+    // User
+    @GET("api/v1/me")
+    suspend fun getMe(): UserRead
+
+    // Devices
     @POST("api/v1/devices")
     suspend fun createDevice(@Body request: CreateDeviceRequest): DeviceResponse
 
@@ -78,4 +95,3 @@ interface IoTPlatformApi {
     @DELETE("api/v1/devices/{device_id}")
     suspend fun deleteDevice(@Path("device_id") deviceId: String)
 }
-

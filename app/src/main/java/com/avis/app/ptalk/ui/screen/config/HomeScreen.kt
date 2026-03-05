@@ -25,8 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -35,18 +38,28 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,11 +73,12 @@ import com.avis.app.ptalk.ui.viewmodel.VMHome
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import kotlinx.coroutines.launch
 
 /**
  * Home Screen - Shows PTIT logo, user devices, and button to connect new device
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToScan: () -> Unit,
@@ -75,12 +89,41 @@ fun HomeScreen(
     val colors = LocalAppColors.current
     val uiState by viewModel.uiState.collectAsState()
 
+    var showProfileSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+
+    // Profile Bottom Sheet
+    if (showProfileSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showProfileSheet = false },
+            sheetState = sheetState,
+            containerColor = colors.card
+        ) {
+            ProfileSheetContent(
+                username = viewModel.getUsername(),
+                email = viewModel.getEmail(),
+                phone = viewModel.getPhone(),
+                userId = viewModel.getUserId(),
+                colors = colors,
+                onSignOut = {
+                    scope.launch {
+                        sheetState.hide()
+                        showProfileSheet = false
+                        viewModel.signOut()
+                        onSignOut()
+                    }
+                }
+            )
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
         // Animated background
         HomeBackground(colors.isDark)
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -88,7 +131,26 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(32.dp))
+            // Top bar with profile button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                IconButton(
+                    onClick = { showProfileSheet = true },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(colors.card.copy(alpha = 0.7f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Tài khoản",
+                        tint = TechColors.PTITRed
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
             
             // PTIT University Logo
             Image(
@@ -221,36 +283,6 @@ fun HomeScreen(
                     )
                 )
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Sign out button
-            OutlinedButton(
-                onClick = {
-                    viewModel.signOut()
-                    onSignOut()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, colors.textSecondary.copy(alpha = 0.5f))
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ExitToApp,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                    tint = colors.textSecondary
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(
-                    text = "Đăng xuất",
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = colors.textSecondary
-                )
-            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -381,4 +413,157 @@ private fun HomeBackground(isDark: Boolean) {
                 )
             }
     )
+}
+
+@Composable
+private fun ProfileSheetContent(
+    username: String?,
+    email: String?,
+    phone: String?,
+    userId: String?,
+    colors: com.avis.app.ptalk.ui.theme.AppColors,
+    onSignOut: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Avatar
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(TechColors.PTITRed, TechColors.OrangeAccent)
+                    ),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = (username?.firstOrNull()?.uppercaseChar() ?: 'U').toString(),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Text(
+            text = username ?: "Người dùng",
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+            color = colors.textPrimary
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        HorizontalDivider(color = colors.textSecondary.copy(alpha = 0.15f))
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // User info rows
+        if (!email.isNullOrBlank()) {
+            ProfileInfoRow(
+                icon = Icons.Default.Email,
+                label = "Email",
+                value = email,
+                colors = colors
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (!phone.isNullOrBlank()) {
+            ProfileInfoRow(
+                icon = Icons.Default.Phone,
+                label = "Số điện thoại",
+                value = phone,
+                colors = colors
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        if (!userId.isNullOrBlank()) {
+            ProfileInfoRow(
+                icon = Icons.Default.Person,
+                label = "User ID",
+                value = userId,
+                colors = colors
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        HorizontalDivider(color = colors.textSecondary.copy(alpha = 0.15f))
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Sign out button
+        Button(
+            onClick = onSignOut,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error,
+                contentColor = Color.White
+            )
+        ) {
+            Icon(
+                imageVector = Icons.Default.ExitToApp,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Đăng xuất",
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileInfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    colors: com.avis.app.ptalk.ui.theme.AppColors
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(TechColors.PTITRed.copy(alpha = 0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = TechColors.PTITRed,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.textSecondary
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                color = colors.textPrimary
+            )
+        }
+    }
 }

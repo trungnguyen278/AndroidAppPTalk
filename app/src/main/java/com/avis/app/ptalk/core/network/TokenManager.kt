@@ -13,7 +13,11 @@ class TokenManager(context: Context) {
     companion object {
         private const val PREFS_NAME = "ptalk_auth_prefs"
         private const val KEY_ACCESS_TOKEN = "access_token"
+        private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_USER_ID = "user_id"
+        private const val KEY_USERNAME = "username"
+        private const val KEY_EMAIL = "email"
+        private const val KEY_PHONE = "phone_number"
     }
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -22,16 +26,33 @@ class TokenManager(context: Context) {
     private val _isLoggedIn = MutableStateFlow(hasToken())
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
-    fun saveToken(token: String, userId: String) {
+    fun saveToken(accessToken: String, refreshToken: String, userId: String) {
         prefs.edit { 
-            putString(KEY_ACCESS_TOKEN, token) 
+            putString(KEY_ACCESS_TOKEN, accessToken) 
+            putString(KEY_REFRESH_TOKEN, refreshToken)
             putString(KEY_USER_ID, userId)
         }
         _isLoggedIn.value = true
     }
 
+    fun saveUserInfo(username: String?, email: String?, phone: String?) {
+        prefs.edit {
+            putString(KEY_USERNAME, username)
+            putString(KEY_EMAIL, email)
+            putString(KEY_PHONE, phone)
+        }
+    }
+
+    fun getUsername(): String? = prefs.getString(KEY_USERNAME, null)
+    fun getEmail(): String? = prefs.getString(KEY_EMAIL, null)
+    fun getPhone(): String? = prefs.getString(KEY_PHONE, null)
+
     fun getToken(): String? {
         return prefs.getString(KEY_ACCESS_TOKEN, null)
+    }
+
+    fun getRefreshToken(): String? {
+        return prefs.getString(KEY_REFRESH_TOKEN, null)
     }
     
     fun getUserId(): String? {
@@ -39,10 +60,7 @@ class TokenManager(context: Context) {
     }
 
     fun clearToken() {
-        prefs.edit { 
-            remove(KEY_ACCESS_TOKEN)
-            remove(KEY_USER_ID)
-        }
+        prefs.edit { clear() }
         _isLoggedIn.value = false
     }
 
