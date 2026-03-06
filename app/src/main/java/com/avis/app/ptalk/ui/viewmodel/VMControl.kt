@@ -28,6 +28,7 @@ class VMControl @Inject constructor(
 
     // Stores the locally saved device name from DB
     private val _localDeviceName = MutableStateFlow<String?>(null)
+    val localDeviceName: StateFlow<String?> = _localDeviceName.asStateFlow()
 
     fun initConnection(macAddress: String) {
         _deviceId.value = macAddress

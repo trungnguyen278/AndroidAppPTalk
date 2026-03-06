@@ -37,7 +37,8 @@ fun ControlScreen(
     val status by viewModel.deviceStatus.collectAsState()
     val isConnected by viewModel.connectionState.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val isDeviceOnline = status != null
+    val localDeviceName by viewModel.localDeviceName.collectAsState()
+    val isDeviceOnline = status?.connectivityState == "ONLINE"
 
     var volume by remember { mutableStateOf(50f) }
     var brightness by remember { mutableStateOf(50f) }
@@ -52,7 +53,8 @@ fun ControlScreen(
 
     LaunchedEffect(status) {
         status?.let {
-            volume = (it.volume ?: 50).toFloat()
+            // Volume from hardware is 0-60. Scale to 0-100 for UI.
+            volume = ((it.volume ?: 30).toFloat() * 100f / 60f).coerceIn(0f, 100f)
             brightness = (it.brightness ?: 50).toFloat()
         }
     }
@@ -101,7 +103,7 @@ fun ControlScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = status?.deviceName ?: deviceName,
+                        text = localDeviceName ?: status?.deviceName ?: deviceName,
                         maxLines = 1
                     )
                 },
@@ -114,7 +116,7 @@ fun ControlScreen(
                     // Rename always allowed (saves to DB, syncs when online)
                     IconButton(
                         onClick = {
-                            newDeviceName = status?.deviceName ?: deviceName
+                            newDeviceName = localDeviceName ?: status?.deviceName ?: deviceName
                             showRenameDialog = true
                         }
                     ) {
@@ -194,7 +196,10 @@ fun ControlScreen(
                 Slider(
                     value = volume,
                     onValueChange = { volume = it },
-                    onValueChangeFinished = { viewModel.setVolume(volume.toInt()) },
+                    onValueChangeFinished = { 
+                        // Map 0-100 UI value back to 0-60 hardware value
+                        viewModel.setVolume((volume * 60f / 100f).toInt()) 
+                    },
                     valueRange = 0f..100f,
                     modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
                     colors = SliderDefaults.colors(

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.thingai.base.log.ILog
 
 /**
@@ -67,6 +68,8 @@ class DeviceControlService(
                                 } else {
                                     _deviceStatus.value = newStatus
                                 }
+                                // Cancel timeout job when a new status arrives
+                                statusTimeoutJob?.cancel()
                             } catch (e: Exception) {
                                 ILog.e(TAG, "Failed to parse status payload: \$payload")
                             }
@@ -76,6 +79,8 @@ class DeviceControlService(
             }
         }
     }
+
+    private var statusTimeoutJob: Job? = null
 
     /**
      * Connect to MQTT and subscribe to the device's status topic
@@ -144,7 +149,21 @@ class DeviceControlService(
      * Request device status update
      */
     fun refreshStatus() {
-        publishCommand("request_status")
+        if (publishCommand("request_status")) {
+            // Start a timeout logic to assume offline if no response
+            statusTimeoutJob?.cancel()
+            statusTimeoutJob = scope.launch {
+                delay(3000) // Wait 3 seconds for the device to respond
+                // If this point is reached, the job wasn't cancelled by an incoming status message
+                val currentStatus = _deviceStatus.value
+                ILog.w(TAG, "No status response received after 3 seconds. Setting connectivity to OFFLINE.")
+                if (currentStatus != null) {
+                    _deviceStatus.value = currentStatus.copy(connectivityState = "OFFLINE")
+                } else {
+                    _deviceStatus.value = DeviceStatusResponse(connectivityState = "OFFLINE")
+                }
+            }
+        }
     }
 
     /**
