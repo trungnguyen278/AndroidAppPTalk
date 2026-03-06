@@ -31,12 +31,15 @@ class VMControl @Inject constructor(
 
     fun initConnection(macAddress: String) {
         _deviceId.value = macAddress
-        controlService.connect(macAddress)
 
-        // Load saved device name from DB
+        // Load saved device info from DB and connect
         viewModelScope.launch {
             val device = deviceRepository.get(macAddress)
             _localDeviceName.value = device?.name
+            
+            val mqttId = device?.deviceId ?: macAddress.replace(":", "").lowercase()
+            android.util.Log.d("VMControl", "initConnection: mac=$macAddress, mqttId=$mqttId")
+            controlService.connect(mqttId)
         }
 
         // When status arrives, check if device name needs syncing

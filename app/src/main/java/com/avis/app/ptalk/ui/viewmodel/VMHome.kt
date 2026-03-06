@@ -66,7 +66,7 @@ class VMHome @Inject constructor(
         viewModelScope.launch {
             try {
                 // Send request_ble_config to device via MQTT before removing
-                val deviceId = device.deviceId ?: device.macAddress
+                val deviceId = device.deviceId ?: device.macAddress.replace(":", "").lowercase()
                 controlService.connect(deviceId)
                 // Give time for MQTT to connect then send BLE config command
                 kotlinx.coroutines.delay(2000)

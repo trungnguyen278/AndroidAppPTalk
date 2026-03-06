@@ -7,9 +7,11 @@ import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.thingai.base.log.ILog
 
@@ -35,6 +37,7 @@ class DeviceControlService(
     val connectionState = mqttClient.isConnected
 
     private var currentDeviceId: String? = null
+    private var connectionJob: Job? = null
 
     init {
         scope.launch {
@@ -44,8 +47,26 @@ class DeviceControlService(
                         val statusTopic = "devices/${deviceId}/status"
                         if (topic == statusTopic) {
                             try {
-                                val status = gson.fromJson(payload, DeviceStatusResponse::class.java)
-                                _deviceStatus.value = status
+                                val newStatus = gson.fromJson(payload, DeviceStatusResponse::class.java)
+                                val currentStatus = _deviceStatus.value
+                                
+                                if (currentStatus != null) {
+                                    _deviceStatus.value = currentStatus.copy(
+                                        deviceId = newStatus.deviceId ?: currentStatus.deviceId,
+                                        status = newStatus.status ?: currentStatus.status,
+                                        batteryLevel = newStatus.batteryLevel ?: currentStatus.batteryLevel,
+                                        volume = newStatus.volume ?: currentStatus.volume,
+                                        brightness = newStatus.brightness ?: currentStatus.brightness,
+                                        deviceName = newStatus.deviceName ?: currentStatus.deviceName,
+                                        firmwareVersion = newStatus.firmwareVersion ?: currentStatus.firmwareVersion,
+                                        wifiSsid = newStatus.wifiSsid ?: currentStatus.wifiSsid,
+                                        wifiRssi = newStatus.wifiRssi ?: currentStatus.wifiRssi,
+                                        connectivityState = newStatus.connectivityState ?: currentStatus.connectivityState,
+                                        uptimeSec = newStatus.uptimeSec ?: currentStatus.uptimeSec
+                                    )
+                                } else {
+                                    _deviceStatus.value = newStatus
+                                }
                             } catch (e: Exception) {
                                 ILog.e(TAG, "Failed to parse status payload: \$payload")
                             }
@@ -61,18 +82,22 @@ class DeviceControlService(
      */
     fun connect(deviceId: String) {
         ILog.d(TAG, "connect() called with deviceId: ${deviceId}")
+        
+        if (currentDeviceId != null && currentDeviceId != deviceId) {
+            mqttClient.unsubscribe("devices/${currentDeviceId}/status")
+        }
+        
         currentDeviceId = deviceId
         mqttClient.connect()
 
         // Wait for actual connection before subscribing & requesting status
-        scope.launch {
-            mqttClient.isConnected.collect { connected ->
-                if (connected) {
-                    ILog.d(TAG, "MQTT connected, now subscribing to devices/${deviceId}/status")
-                    mqttClient.subscribe("devices/${deviceId}/status")
-                    refreshStatus()
-                    return@collect
-                }
+        connectionJob?.cancel()
+        connectionJob = scope.launch {
+            mqttClient.isConnected.first { it }
+            if (currentDeviceId == deviceId) {
+                ILog.d(TAG, "MQTT connected, now subscribing to devices/${deviceId}/status")
+                mqttClient.subscribe("devices/${deviceId}/status")
+                refreshStatus()
             }
         }
 

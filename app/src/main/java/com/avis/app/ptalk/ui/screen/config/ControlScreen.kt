@@ -236,7 +236,10 @@ fun ControlScreen(
 
             // Request BLE Config button
             OutlinedButton(
-                onClick = { viewModel.resetWifi() },
+                onClick = {
+                    viewModel.resetWifi()
+                    onBack()
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = isConnected && isDeviceOnline && !isLoading,
                 shape = RoundedCornerShape(16.dp),
@@ -256,7 +259,10 @@ fun ControlScreen(
 
             // Reboot button
             Button(
-                onClick = { viewModel.rebootDevice() },
+                onClick = {
+                    viewModel.rebootDevice()
+                    onBack()
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 enabled = isConnected && isDeviceOnline && !isLoading,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336), contentColor = Color.White),
