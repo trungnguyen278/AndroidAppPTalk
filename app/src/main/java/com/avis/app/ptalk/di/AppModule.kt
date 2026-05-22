@@ -1,6 +1,7 @@
 package com.avis.app.ptalk.di
 
 import android.content.Context
+import com.avis.app.ptalk.BuildConfig
 import com.avis.app.ptalk.core.ble.BleClient
 import com.avis.app.ptalk.core.ble.impl.PTalkBleClient
 import com.avis.app.ptalk.core.network.AuthInterceptor
@@ -53,7 +54,7 @@ object AppModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://iot.yirlodt.io.vn/")
+            .baseUrl(BuildConfig.API_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

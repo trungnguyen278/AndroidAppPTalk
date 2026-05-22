@@ -172,12 +172,35 @@ class DeviceControlService(
     fun setVolume(volume: Int): Boolean {
         _isLoading.value = true
         _lastError.value = null
-        val success = publishCommand("set_volume", volume)
-        if (success) {
-            _deviceStatus.value = _deviceStatus.value?.copy(volume = volume)
+        
+        val deviceId = currentDeviceId
+        if (deviceId != null) {
+            scope.launch {
+                try {
+                    val url = java.net.URL("http://171.226.10.121:8000/v2/volume/$deviceId/$volume")
+                    val connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 5000
+                    connection.readTimeout = 5000
+                    val responseCode = connection.responseCode
+                    if (responseCode == 200) {
+                        _deviceStatus.value = _deviceStatus.value?.copy(volume = volume)
+                        ILog.d(TAG, "Sent volume $volume to $deviceId via HTTP")
+                    } else {
+                        _lastError.value = "HTTP error: $responseCode"
+                    }
+                    connection.disconnect()
+                } catch (e: Exception) {
+                    _lastError.value = "HTTP error: ${e.message}"
+                } finally {
+                    _isLoading.value = false
+                }
+            }
+            return true
+        } else {
+            _isLoading.value = false
+            return false
         }
-        _isLoading.value = false
-        return success
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.avis.app.ptalk.core.mqtt
 
+import com.avis.app.ptalk.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +16,7 @@ import java.util.UUID
 
 class PTalkMqttClient {
     private val TAG = "PTalkMqttClient"
-    private val serverUri = "tcp://171.226.10.121:443"
+    private val serverUri = BuildConfig.MQTT_SERVER_URI
     private var client: MqttClient? = null
 
     private val _isConnected = MutableStateFlow(false)
