@@ -48,7 +48,7 @@ android {
 
     defaultConfig {
         buildConfigField("String", "API_BASE_URL", "\"http://171.226.10.121:8000/\"")
-        buildConfigField("String", "MQTT_SERVER_URI", "\"tcp://171.226.10.121:443\"")
+        buildConfigField("String", "MQTT_SERVER_URI", "\"mqtt://171.226.10.121:8443\"")
     }
 }
 

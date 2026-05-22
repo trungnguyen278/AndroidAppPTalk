@@ -47,7 +47,7 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         splashScreen.setKeepOnScreenCondition { false }
 
-        val startDest = Route.HOME
+        val startDest = if (tokenManager.getToken() != null) Route.HOME else Route.LOGIN
 
         enableEdgeToEdge()
         setContent {
