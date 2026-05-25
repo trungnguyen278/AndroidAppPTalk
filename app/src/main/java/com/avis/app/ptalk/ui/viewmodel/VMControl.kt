@@ -38,7 +38,7 @@ class VMControl @Inject constructor(
             val device = deviceRepository.get(macAddress)
             _localDeviceName.value = device?.name
             
-            val mqttId = device?.deviceId ?: macAddress.replace(":", "").lowercase()
+            val mqttId = (device?.deviceId ?: macAddress.replace(":", "")).uppercase()
             android.util.Log.d("VMControl", "initConnection: mac=$macAddress, mqttId=$mqttId")
             controlService.connect(mqttId)
         }

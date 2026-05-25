@@ -53,8 +53,7 @@ fun ControlScreen(
 
     LaunchedEffect(status) {
         status?.let {
-            // Volume from hardware is 0-60. Scale to 0-100 for UI.
-            volume = ((it.volume ?: 30).toFloat() * 100f / 60f).coerceIn(0f, 100f)
+            volume = (it.volume ?: 30).toFloat()
             brightness = (it.brightness ?: 50).toFloat()
         }
     }
@@ -197,8 +196,7 @@ fun ControlScreen(
                     value = volume,
                     onValueChange = { volume = it },
                     onValueChangeFinished = { 
-                        // Map 0-100 UI value back to 0-60 hardware value
-                        viewModel.setVolume((volume * 60f / 100f).toInt()) 
+                        viewModel.setVolume(volume.toInt())
                     },
                     valueRange = 0f..100f,
                     modifier = Modifier.weight(1f).padding(horizontal = 16.dp),

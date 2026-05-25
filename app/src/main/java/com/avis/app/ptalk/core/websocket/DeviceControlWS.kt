@@ -287,6 +287,6 @@ data class DeviceStatusResponse(
     @SerializedName("firmware_version") val firmwareVersion: String? = null,
     @SerializedName("wifi_ssid") val wifiSsid: String? = null,
     @SerializedName("wifi_rssi") val wifiRssi: Int? = null,
-    @SerializedName("connectivity_state") val connectivityState: String? = null,
+    @SerializedName(value = "connectivity_state", alternate = ["connectivity"]) val connectivityState: Any? = null,
     @SerializedName("uptime_sec") val uptimeSec: Int? = null
 )

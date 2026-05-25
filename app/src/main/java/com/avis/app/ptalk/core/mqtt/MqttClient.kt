@@ -48,7 +48,7 @@ class PTalkMqttClient {
                 }
 
                 override fun mqttErrorOccurred(exception: MqttException?) {
-                    ILog.e(TAG, "MQTT Error: \${exception?.message}")
+                    ILog.e(TAG, "MQTT Error: ${exception?.message}")
                 }
 
                 override fun messageArrived(topic: String?, message: MqttMessage?) {
@@ -72,7 +72,7 @@ class PTalkMqttClient {
 
             client?.connect(options)
         } catch (e: Exception) {
-            ILog.e(TAG, "MQTT connection error: \${e.message}")
+            ILog.e(TAG, "MQTT connection error: ${e.message}")
         }
     }
 
@@ -83,7 +83,7 @@ class PTalkMqttClient {
                 _isConnected.value = false
             }
         } catch (e: Exception) {
-            ILog.e(TAG, "Error disconnecting: \${e.message}")
+            ILog.e(TAG, "Error disconnecting: ${e.message}")
         }
     }
 
@@ -91,10 +91,10 @@ class PTalkMqttClient {
         try {
             if (_isConnected.value) {
                 client?.subscribe(topic, 1)
-                ILog.d(TAG, "Subscribed to \$topic")
+                ILog.d(TAG, "Subscribed to $topic")
             }
         } catch (e: Exception) {
-            ILog.e(TAG, "Error subscribing: \${e.message}")
+            ILog.e(TAG, "Error subscribing: ${e.message}")
         }
     }
 
@@ -104,7 +104,7 @@ class PTalkMqttClient {
                 client?.unsubscribe(topic)
             }
         } catch (e: Exception) {
-            ILog.e(TAG, "Error unsubscribing: \${e.message}")
+            ILog.e(TAG, "Error unsubscribing: ${e.message}")
         }
     }
 
@@ -118,10 +118,10 @@ class PTalkMqttClient {
                 client?.publish(topic, mqttMessage)
                 ILog.d(TAG, "Published to $topic: $message")
             } else {
-                ILog.w(TAG, "Cannot publish to \$topic: not connected")
+                ILog.w(TAG, "Cannot publish to $topic: not connected")
             }
         } catch (e: Exception) {
-            ILog.e(TAG, "Error publishing: \${e.message}")
+            ILog.e(TAG, "Error publishing: ${e.message}")
         }
     }
 }

@@ -51,6 +51,13 @@ class DeviceControlService(
                                 val newStatus = gson.fromJson(payload, DeviceStatusResponse::class.java)
                                 val currentStatus = _deviceStatus.value
                                 
+                                // Map connectivity numeric value or force to ONLINE since we received a message
+                                val incomingConnectivity = when (val c = newStatus.connectivityState) {
+                                    is Number -> if (c.toInt() > 0) "ONLINE" else "OFFLINE"
+                                    is String -> c
+                                    else -> "ONLINE"
+                                }
+
                                 if (currentStatus != null) {
                                     _deviceStatus.value = currentStatus.copy(
                                         deviceId = newStatus.deviceId ?: currentStatus.deviceId,
@@ -62,16 +69,17 @@ class DeviceControlService(
                                         firmwareVersion = newStatus.firmwareVersion ?: currentStatus.firmwareVersion,
                                         wifiSsid = newStatus.wifiSsid ?: currentStatus.wifiSsid,
                                         wifiRssi = newStatus.wifiRssi ?: currentStatus.wifiRssi,
-                                        connectivityState = newStatus.connectivityState ?: currentStatus.connectivityState,
+                                        connectivityState = incomingConnectivity,
                                         uptimeSec = newStatus.uptimeSec ?: currentStatus.uptimeSec
                                     )
                                 } else {
-                                    _deviceStatus.value = newStatus
+                                    _deviceStatus.value = newStatus.copy(connectivityState = incomingConnectivity)
                                 }
+                                ILog.d(TAG, "Device status updated: $incomingConnectivity")
                                 // Cancel timeout job when a new status arrives
                                 statusTimeoutJob?.cancel()
                             } catch (e: Exception) {
-                                ILog.e(TAG, "Failed to parse status payload: \$payload")
+                                ILog.e(TAG, "Failed to parse status payload: $payload")
                             }
                         }
                     }
@@ -146,61 +154,79 @@ class DeviceControlService(
     }
 
     /**
-     * Request device status update
+     * Request device status update with automatic retries if no response is received.
      */
-    fun refreshStatus() {
-        if (publishCommand("request_status")) {
-            // Start a timeout logic to assume offline if no response
-            statusTimeoutJob?.cancel()
-            statusTimeoutJob = scope.launch {
-                delay(3000) // Wait 3 seconds for the device to respond
-                // If this point is reached, the job wasn't cancelled by an incoming status message
-                val currentStatus = _deviceStatus.value
-                ILog.w(TAG, "No status response received after 3 seconds. Setting connectivity to OFFLINE.")
-                if (currentStatus != null) {
-                    _deviceStatus.value = currentStatus.copy(connectivityState = "OFFLINE")
+    fun refreshStatus(maxRetries: Int = 3) {
+        statusTimeoutJob?.cancel()
+        statusTimeoutJob = scope.launch {
+            repeat(maxRetries) { attempt ->
+                if (publishCommand("request_status")) {
+                    ILog.d(TAG, "Sent status request (attempt ${attempt + 1}/$maxRetries)")
+                    delay(3000) // Wait 3 seconds for the device to respond
                 } else {
-                    _deviceStatus.value = DeviceStatusResponse(connectivityState = "OFFLINE")
+                    ILog.w(TAG, "Failed to publish status request on attempt ${attempt + 1}")
+                    return@launch
                 }
+            }
+
+            // If this point is reached, no status update was received within the retries
+            // (Successful status updates cancel this job in the message collector)
+            val currentStatus = _deviceStatus.value
+            ILog.w(TAG, "No status response received after $maxRetries attempts. Setting connectivity to OFFLINE.")
+            if (currentStatus != null) {
+                _deviceStatus.value = currentStatus.copy(connectivityState = "OFFLINE")
+            } else {
+                _deviceStatus.value = DeviceStatusResponse(connectivityState = "OFFLINE")
             }
         }
     }
 
     /**
-     * Set device volume (0-100)
+     * Set device volume (0-100) via both MQTT and HTTP for redundancy.
      */
     fun setVolume(volume: Int): Boolean {
         _isLoading.value = true
         _lastError.value = null
         
         val deviceId = currentDeviceId
-        if (deviceId != null) {
-            scope.launch {
-                try {
-                    val url = java.net.URL("http://171.226.10.121:8000/v2/volume/$deviceId/$volume")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 5000
-                    connection.readTimeout = 5000
-                    val responseCode = connection.responseCode
-                    if (responseCode == 200) {
-                        _deviceStatus.value = _deviceStatus.value?.copy(volume = volume)
-                        ILog.d(TAG, "Sent volume $volume to $deviceId via HTTP")
-                    } else {
-                        _lastError.value = "HTTP error: $responseCode"
-                    }
-                    connection.disconnect()
-                } catch (e: Exception) {
-                    _lastError.value = "HTTP error: ${e.message}"
-                } finally {
-                    _isLoading.value = false
-                }
-            }
-            return true
-        } else {
+        if (deviceId == null) {
             _isLoading.value = false
             return false
         }
+
+        // 1. Send via MQTT
+        val mqttSuccess = publishCommand("set_volume", volume)
+        if (mqttSuccess) {
+            _deviceStatus.value = _deviceStatus.value?.copy(volume = volume)
+            ILog.d(TAG, "Sent volume $volume to $deviceId via MQTT")
+        }
+
+        // 2. Send via HTTP (Legacy/Fallback)
+        scope.launch {
+            try {
+                val url = java.net.URL("http://171.226.10.121:8000/v2/volume/$deviceId/$volume")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+                val responseCode = connection.responseCode
+                if (responseCode == 200) {
+                    ILog.d(TAG, "Sent volume $volume to $deviceId via HTTP")
+                    // If MQTT failed but HTTP succeeded, we still update the UI state
+                    if (!mqttSuccess) {
+                        _deviceStatus.value = _deviceStatus.value?.copy(volume = volume)
+                    }
+                } else {
+                    ILog.w(TAG, "HTTP volume update failed: $responseCode")
+                }
+                connection.disconnect()
+            } catch (e: Exception) {
+                ILog.e(TAG, "HTTP volume update error: ${e.message}")
+            } finally {
+                _isLoading.value = false
+            }
+        }
+        return true
     }
 
     /**
